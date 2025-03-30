@@ -1,5 +1,7 @@
 # BunkerWeb avec Authentik et Vaultwarden
 
+[![GitHub](https://img.shields.io/badge/GitHub-djenko--it%2Fbunker__vault-blue?logo=github)](https://github.com/djenko-it/bunker_vault)
+
 Ce dépôt contient une configuration Docker Compose pour déployer une infrastructure complète incluant :
 
 - **BunkerWeb** : Reverse proxy sécurisé basé sur NGINX
@@ -22,58 +24,64 @@ L'infrastructure est composée des éléments suivants :
 - Protection contre les bots et scanners
 - Authentification centralisée pour les applications
 
-## Prérequis
-
-- Docker et Docker Compose v2 ou supérieur
-- Domaines configurés et pointant vers votre serveur
-- Serveur Linux avec au moins 2Go de RAM
-
-## Structure des fichiers
-
-```
-.
-├── docker-compose.yml     # Configuration principale
-├── .env                   # Variables d'environnement (à partir du template)
-├── secrets/               # Dossier contenant les secrets
-│   ├── postgres_password.txt
-│   ├── vaultwarden_admin_token.txt
-│   └── bw_ui_admin_password.txt
-├── media/                 # Dossier pour les médias d'Authentik
-├── custom-templates/      # Templates personnalisés pour Authentik
-├── certs/                 # Certificats (utilisés par Authentik)
-└── vw-data/               # Données Vaultwarden
-```
-
 ## Installation
 
 1. **Cloner le dépôt**
    ```bash
-   git clone https://github.com/VOTRE-UTILISATEUR/VOTRE-REPO.git
-   cd VOTRE-REPO
+   git clone https://github.com/djenko-it/bunker_vault.git
+   cd bunker_vault
    ```
 
-2. **Créer la structure des dossiers et les secrets**
+2. **Créer uniquement le dossier secrets (les autres seront créés automatiquement)**
    ```bash
-   # Exécuter le script de création des secrets
-   chmod +x create-secrets.sh
-   ./create-secrets.sh
+   # Créer le dossier secrets
+   mkdir -p secrets
    ```
 
-3. **Configurer le fichier .env**
+3. **Créer les fichiers de secrets**
    ```bash
-   # Le script create-secrets.sh a déjà créé le fichier .env à partir du template
-   # Éditer le fichier avec vos propres valeurs
-   nano .env
+   # Générer les mots de passe pour PostgreSQL
+   openssl rand -base64 24 | tr -d '\n/+=' > secrets/postgres_password.txt
+   
+   # Générer un token admin pour Vaultwarden
+   openssl rand -base64 24 | tr -d '\n/+=' > secrets/vaultwarden_admin_token.txt
+   
+   # Générer un mot de passe admin pour BunkerWeb UI
+   openssl rand -base64 24 | tr -d '\n/+=' > secrets/bw_ui_admin_password.txt
+   
+   # Limiter les permissions des fichiers de secrets
+   chmod 600 secrets/*
+   ```
+
+4. **Configurer le fichier .env**
+   ```bash
+   # Copier le template
+   cp .env.template .env
+   
+   # Générer les clés et renseigner le fichier .env
+   echo "BASE_DOMAIN=example.com" >> .env
+   echo "AUTH_DOMAIN=bunk.example.com" >> .env
+   echo "ADMIN_DOMAIN=admin.example.com" >> .env
+   echo "VAULT_DOMAIN=vault.example.com" >> .env
+   echo "SERVER_NAMES=bunk.example.com admin.example.com vault.example.com" >> .env
+   echo "AUTHENTIK_COOKIE_DOMAIN=example.com" >> .env
+   
+   # Générer une clé secrète pour Authentik
+   echo "AUTHENTIK_SECRET_KEY=$(openssl rand -base64 36 | tr -d '\n')" >> .env
+   
+   # Remplacez "example.com" par votre domaine dans les commandes ci-dessus
    ```
    
-   Au minimum, modifiez les variables suivantes :
-   - `BASE_DOMAIN` : votre domaine principal
-   - `AUTH_DOMAIN`, `ADMIN_DOMAIN`, `VAULT_DOMAIN` : sous-domaines pour vos applications
-   - `SERVER_NAMES` : liste de tous vos domaines (séparés par des espaces)
-   - `WHITELIST_COUNTRY` : codes des pays autorisés (ISO 3166-1 alpha-2)
-   - `AUTHENTIK_COOKIE_DOMAIN` : domaine pour les cookies Authentik
+   Vous pouvez ensuite personnaliser d'autres variables selon vos besoins :
+   ```bash
+   # Configuration email (optionnel)
+   echo "AUTHENTIK_EMAIL__HOST=smtp.gmail.com" >> .env
+   echo "AUTHENTIK_EMAIL__USERNAME=your-email@gmail.com" >> .env
+   echo "AUTHENTIK_EMAIL__PASSWORD=your-app-password" >> .env
+   echo "AUTHENTIK_EMAIL__FROM=your-email@gmail.com" >> .env
+   ```
 
-4. **Démarrer les services**
+5. **Démarrer les services**
    ```bash
    docker compose up -d
    ```
@@ -82,10 +90,15 @@ L'infrastructure est composée des éléments suivants :
 
 Une fois déployé, les services seront disponibles aux adresses suivantes (adaptez selon vos domaines) :
 
-- **Authentik** : https://${AUTH_DOMAIN} (par défaut : https://bunk.djenkoit.fr)
-- **BunkerWeb Admin** : https://${ADMIN_DOMAIN} (par défaut : https://admin.djenkoit.fr)
-- **Vaultwarden** : https://${VAULT_DOMAIN} (par défaut : https://vault.djenkoit.fr)
+- **Authentik** : https://${AUTH_DOMAIN} (par défaut : https://bunk.example.com)
+- **BunkerWeb Admin** : https://${ADMIN_DOMAIN} (par défaut : https://admin.example.com)
+- **Vaultwarden** : https://${VAULT_DOMAIN} (par défaut : https://vault.example.com)
 - **Interface d'administration Vaultwarden** (protégée par Authentik) : https://${VAULT_DOMAIN}/admin
+
+## Première connexion
+
+Lors de la première connexion à Authentik (https://${AUTH_DOMAIN}), vous devrez créer un compte administrateur.
+Conservez précieusement ces identifiants, ils vous permettront d'administrer toute votre infrastructure.
 
 ## Personnalisation
 
@@ -137,14 +150,6 @@ docker compose pull
 docker compose up -d
 ```
 
-### Sauvegarder les données
-Il est recommandé de sauvegarder régulièrement :
-- Le dossier `vw-data/` (données Vaultwarden)
-- Le volume `database` (base de données PostgreSQL)
-- Le dossier `media/` (fichiers média Authentik)
-- Le dossier `secrets/` (pour les mots de passe)
-- Le fichier `.env` (pour la configuration)
-
 ## Dépannage
 
 ### Logs
@@ -171,12 +176,3 @@ docker compose logs bunkerweb
 3. **Accès refusé à BunkerWeb UI**
    - Vérifiez les identifiants dans `secrets/bw_ui_admin_password.txt`
    - Vérifiez les logs BunkerWeb : `docker compose logs bw-ui`
-
-## Sécurité
-
-Cette configuration inclut plusieurs mesures de sécurité :
-- Utilisation de Docker Secrets pour les mots de passe
-- Limitation des accès par pays (configurable via `WHITELIST_COUNTRY`)
-- Protection contre les bots (blacklisting de User-Agents via `BLACKLIST_RDNS`)
-- Limitation de débit pour les API
-- Authentification centralisée via Authentik
