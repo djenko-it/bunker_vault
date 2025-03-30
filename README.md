@@ -55,31 +55,32 @@ L'infrastructure est composée des éléments suivants :
 
 4. **Configurer le fichier .env**
    ```bash
-   # Copier le template
-   cp .env.template .env
+   # Créer un fichier .env vide
+   touch .env
    
-   # Générer les clés et renseigner le fichier .env
+   # Configuration des domaines (remplacez example.com par votre domaine)
    echo "BASE_DOMAIN=example.com" >> .env
    echo "AUTH_DOMAIN=bunk.example.com" >> .env
    echo "ADMIN_DOMAIN=admin.example.com" >> .env
    echo "VAULT_DOMAIN=vault.example.com" >> .env
    echo "SERVER_NAMES=bunk.example.com admin.example.com vault.example.com" >> .env
    echo "AUTHENTIK_COOKIE_DOMAIN=example.com" >> .env
+   echo "BW_UI_ADMIN_USER=admin" >> .env
+
    
    # Générer une clé secrète pour Authentik
    echo "AUTHENTIK_SECRET_KEY=$(openssl rand -base64 36 | tr -d '\n')" >> .env
    
-   # Remplacez "example.com" par votre domaine dans les commandes ci-dessus
+   # Configuration email (optionnel)
+   # echo "AUTHENTIK_EMAIL__HOST=smtp.gmail.com" >> .env
+   # echo "AUTHENTIK_EMAIL__PORT=587" >> .env
+   # echo "AUTHENTIK_EMAIL__USE_TLS=true" >> .env
+   # echo "AUTHENTIK_EMAIL__USERNAME=your-email@gmail.com" >> .env
+   # echo "AUTHENTIK_EMAIL__PASSWORD=your-app-password" >> .env
+   # echo "AUTHENTIK_EMAIL__FROM=your-email@gmail.com" >> .env
    ```
    
-   Vous pouvez ensuite personnaliser d'autres variables selon vos besoins :
-   ```bash
-   # Configuration email (optionnel)
-   echo "AUTHENTIK_EMAIL__HOST=smtp.gmail.com" >> .env
-   echo "AUTHENTIK_EMAIL__USERNAME=your-email@gmail.com" >> .env
-   echo "AUTHENTIK_EMAIL__PASSWORD=your-app-password" >> .env
-   echo "AUTHENTIK_EMAIL__FROM=your-email@gmail.com" >> .env
-   ```
+
 
 5. **Démarrer les services**
    ```bash
