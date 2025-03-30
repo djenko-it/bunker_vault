@@ -1,4 +1,4 @@
-version: "3.4"
+version: "3.8"
 
 services:
   bunkerweb:
@@ -99,7 +99,8 @@ services:
       - ADMIN_USERNAME=${BW_UI_ADMIN_USER:-admin}
       - ADMIN_PASSWORD_FILE=/run/secrets/bw_ui_admin_password
     secrets:
-      - bw_ui_admin_password
+      - source: bw_ui_admin_password
+        target: bw_ui_admin_password
     networks:
       bw-universe:
         aliases:
@@ -117,7 +118,8 @@ services:
     volumes:
       - ./vw-data:/data
     secrets:
-      - vaultwarden_admin_token
+      - source: vaultwarden_admin_token
+        target: vaultwarden_admin_token
     networks:
       - bw-services
 
@@ -139,7 +141,8 @@ services:
       POSTGRES_USER: ${PG_USER:-authentik}
       POSTGRES_DB: ${PG_DB:-authentik}
     secrets:
-      - postgres_password
+      - source: postgres_password
+        target: postgres_password
     networks:
       - bw-services
 
@@ -174,7 +177,8 @@ services:
       - ./media:/media
       - ./custom-templates:/templates
     secrets:
-      - postgres_password
+      - source: postgres_password
+        target: postgres_password
     depends_on:
       - postgresql
       - redis
@@ -191,6 +195,7 @@ services:
       AUTHENTIK_POSTGRESQL__USER: ${PG_USER:-authentik}
       AUTHENTIK_POSTGRESQL__NAME: ${PG_DB:-authentik}
       AUTHENTIK_POSTGRESQL__PASSWORD_FILE: /run/secrets/postgres_password
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
     user: root
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -198,15 +203,13 @@ services:
       - ./certs:/certs
       - ./custom-templates:/templates
     secrets:
-      - postgres_password
+      - source: postgres_password
+        target: postgres_password
     depends_on:
       - postgresql
       - redis
     networks:
       - bw-services
-
-# Tous les volumes sont maintenant des volumes liés au système de fichiers local
-# et non des volumes Docker nommés
 
 networks:
   bw-universe:
