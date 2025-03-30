@@ -93,7 +93,7 @@ services:
     depends_on:
       - bw-docker
     volumes:
-      - bw-data:/data
+      - ./bw-data:/data
     environment:
       - DOCKER_HOST=tcp://bw-docker:2375
       - ADMIN_USERNAME=${BW_UI_ADMIN_USER:-admin}
