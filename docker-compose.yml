@@ -20,7 +20,7 @@ services:
     depends_on:
       - bunkerweb
     volumes:
-      - bw-data:/data
+      - ./bw-data:/data
     environment:
       - BUNKERWEB_INSTANCES=bunkerweb
       - MULTISITE=yes
@@ -133,7 +133,7 @@ services:
       retries: 5
       timeout: 5s
     volumes:
-      - database:/var/lib/postgresql/data
+      - ./postgresql-data:/var/lib/postgresql/data
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       POSTGRES_USER: ${PG_USER:-authentik}
@@ -154,7 +154,7 @@ services:
       retries: 5
       timeout: 3s
     volumes:
-      - redis:/data
+      - ./redis-data:/data
     networks:
       - bw-services
 
@@ -169,6 +169,7 @@ services:
       AUTHENTIK_POSTGRESQL__USER: ${PG_USER:-authentik}
       AUTHENTIK_POSTGRESQL__NAME: ${PG_DB:-authentik}
       AUTHENTIK_POSTGRESQL__PASSWORD_FILE: /run/secrets/postgres_password
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
     volumes:
       - ./media:/media
       - ./custom-templates:/templates
@@ -204,11 +205,8 @@ services:
     networks:
       - bw-services
 
-volumes:
-  bw-data:
-  database:
-  redis:
-  geoip:
+# Tous les volumes sont maintenant des volumes liés au système de fichiers local
+# et non des volumes Docker nommés
 
 networks:
   bw-universe:
