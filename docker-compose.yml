@@ -1,0 +1,247 @@
+version: "3.4"
+
+services:
+  bunkerweb:
+    image: bunkerity/bunkerweb:1.6.1
+    ports:
+      - 80:8080
+      - 443:8443
+    labels:
+      - "bunkerweb.INSTANCE=yes"
+    environment:
+      API_WHITELIST_IP: "127.0.0.0/8 10.20.30.0/24"
+    networks:
+      - bw-universe
+      - bw-services
+
+  bw-scheduler:
+    image: bunkerity/bunkerweb-scheduler:1.6.1
+    container_name: bw-scheduler
+    depends_on:
+      - bunkerweb
+    volumes:
+      - bw-data:/data
+    environment:
+      - BUNKERWEB_INSTANCES=bunkerweb
+      - MULTISITE=yes
+      - SERVER_NAME=bunk.djenkoit.fr app1.djenkoit.fr app2.djenkoit.fr admin.djenkoit.fr vault.djenkoit.fr #replace with your domains
+      - WHITELIST_IP_URLS=37.65.52.191
+      - API_WHITELIST_IP=127.0.0.0/8 10.20.30.0/24
+      - BLACKLIST_RDNS=.shodan.io .censys.io .google.com .googlebot.com .yandex.ru .yandex.net .yandex.com .search.msn.com .baidu.com .baidu.jp .crawl.yahoo.net .fwd.linkedin.com .twitter.com .twttr.com .discord.com
+      - WHITELIST_COUNTRY=FR
+      - SERVE_FILES=no
+      - DISABLE_DEFAULT_SERVER=yes
+      - AUTO_LETS_ENCRYPT=yes
+      - USE_CLIENT_CACHE=yes
+      - USE_GZIP=yes
+      - USE_REVERSE_PROXY=yes
+     # Proxy to outpost -------------------------------------------
+      - REVERSE_PROXY_URL_999=/outpost.goauthentik.io
+      - REVERSE_PROXY_HOST_999=http://server:9000
+      - REVERSE_PROXY_HEADERS_999=X-Original-URL $$scheme://$$http_host$$request_uri;Content-Length ""
+      - REVERSE_PROXY_HEADERS_CLIENT_999=Set-Cookie $$auth_cookie
+      - REVERSE_PROXY_AUTH_REQUEST_SET_999=$$auth_cookie $$upstream_http_set_cookie
+      # Authentik -------------------------------------------
+      - bunk.djenkoit.fr_REVERSE_PROXY_URL=/
+      - bunk.djenkoit.fr_REVERSE_PROXY_HOST=http://server:9000
+      - bunk.djenkoit.fr_REVERSE_PROXY_WS=yes
+      - bunk.djenkoit.fr_LIMIT_REQ_URL_1=^/api/
+      - bunk.djenkoit.fr_LIMIT_REQ_RATE_1=5r/s
+      - bunk.djenkoit.fr_REVERSE_PROXY_INTERCEPT_ERRORS=no
+      - bunk.djenkoit.fr_INTERCEPTED_ERROR_CODES=400 404 405 429 367 573
+      - bunk.djenkoit.fr_ALLOWED_METHODS=GET|POST|HEAD|PUT|DELETE|PATCH
+      - bunk.djenkoit.fr_COOKIE_FLAGS=* SameSite=Lax
+      # Bunkerweb UI -------------------------------------------
+      - admin.djenkoit.fr_USE_UI=yes
+      - admin.djenkoit.fr_REVERSE_PROXY_URL=/myconfig
+      - admin.djenkoit.fr_REVERSE_PROXY_HOST=http://bw-ui:7000
+      - admin.djenkoit.fr_WHITELIST_COUNTRY=FR
+      - admin.djenkoit.fr_INTERCEPTED_ERROR_CODES=400 404 405 413 429 500 501 502 503 504
+      # Vaultwarden UI -------------------------------------------
+      - vault.djenkoit.fr_REVERSE_PROXY_URL=/ # Laisse l'accès normal à Vaultwarden
+      - vault.djenkoit.fr_REVERSE_PROXY_BUFFERING=no
+      - vault.djenkoit.fr_REVERSE_PROXY_HOST=http://vaultwarden
+      - vault.djenkoit.fr_REVERSE_PROXY_INTERCEPT_ERRORS=no
+      - vault.djenkoit.fr_REVERSE_PROXY_WS=yes
+      - vault.djenkoit.fr_INTERCEPTED_ERROR_CODES=400 404 405 413 429 500 501 502 503 504
+      - vault.djenkoit.fr_ALLOWED_METHODS=GET|POST|HEAD|PUT
+      # Vaultwarden/admin avec Authentik -------------------------------------------
+      - vault.djenkoit.fr_REVERSE_PROXY_URL_1=/admin
+      - vault.djenkoit.fr_REVERSE_PROXY_HOST_1=http://vaultwarden
+      - vault.djenkoit.fr_REVERSE_PROXY_AUTH_REQUEST_1=/outpost.goauthentik.io/auth/nginx
+      - vault.djenkoit.fr_REVERSE_PROXY_AUTH_REQUEST_SIGNIN_URL_1=https://bunk.djenkoit.fr/outpost.goauthentik.io/start?rd=$$scheme%3A%2F%2F$$host$$request_uri
+      - vault.djenkoit.fr_REVERSE_PROXY_AUTH_REQUEST_SET_1=$$auth_cookie $$upstream_http_set_cookie;$$authentik_username $$upstream_http_x_authentik_username;$$authentik_groups $$upstream_http_x_authentik_groups;$$authentik_email $$upstream_http_x_authentik_email;$$authentik_name $$upstream_http_x_authentik_name;$$authentik_uid $$upstream_http_x_authentik_uid
+      - vault.djenkoit.fr_REVERSE_PROXY_HEADERS_CLIENT_1=Set-Cookie $$auth_cookie
+      - vault.djenkoit.fr_REVERSE_PROXY_HEADERS_1=X-authentik-username $$authentik_username;X-authentik-groups $$authentik_groups;X-authentik-email $$authentik_email;X-authentik-name $$authentik_name;X-authentik-uid $$authentik_uid
+      # App de test -------------------------------------------
+      # - app1.djenkoit.fr_REVERSE_PROXY_URL=/
+      # - app1.djenkoit.fr_REVERSE_PROXY_HOST=http://app2:8080
+      # - app1.djenkoit.fr_REVERSE_PROXY_AUTH_REQUEST=/outpost.goauthentik.io/auth/nginx
+      # - app1.djenkoit.fr_REVERSE_PROXY_AUTH_REQUEST_SIGNIN_URL=https://bunk.djenkoit.fr/outpost.goauthentik.io/start?rd=$$scheme%3A%2F%2F$$host$$request_uri
+      # - app1.djenkoit.fr_REVERSE_PROXY_AUTH_REQUEST_SET=$$auth_cookie $$upstream_http_set_cookie;$$authentik_username $$upstream_http_x_authentik_username;$$authentik_groups $$upstream_http_x_authentik_groups;$$authentik_email $$upstream_http_x_authentik_email;$$authentik_name $$upstream_http_x_authentik_name;$$authentik_uid $$upstream_http_x_authentik_uid
+      # - app1.djenkoit.fr_REVERSE_PROXY_HEADERS_CLIENT=Set-Cookie $$auth_cookie
+      # - app1.djenkoit.fr_REVERSE_PROXY_HEADERS=X-authentik-username $$authentik_username;X-authentik-groups $$authentik_groups;X-authentik-email $$authentik_email;X-authentik-name $$authentik_name;X-authentik-uid $$authentik_uid
+    restart: "unless-stopped"
+    networks:
+      - bw-universe
+
+  bw-docker:
+    image: tecnativa/docker-socket-proxy:nightly
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - CONTAINERS=1
+      - LOG_LEVEL=warning
+    networks:
+      - bw-docker
+
+  bw-ui:
+    image: bunkerity/bunkerweb-ui:1.6.1
+    restart: unless-stopped
+    depends_on:
+      - bw-docker
+    volumes:
+      - bw-data:/data
+    environment:
+      - DOCKER_HOST=tcp://bw-docker:2375
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=changemeAdmin11!
+    networks:
+      bw-universe:
+        aliases:
+          - bw-ui
+      bw-docker:
+
+  # APPLICATIONS Vaultwarden -------------------------------------------
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: always
+    environment:
+      DOMAIN: "https://vault.djenkoit.fr"
+      ADMIN_TOKEN: "Test1111!"
+    volumes:
+      - ./vw-data:/data
+    networks:
+      - bw-services
+
+  # APPLICATIONS MailHog pour le test
+
+  # mailhog:
+  #   image: mailhog/mailhog
+  #   container_name: 'mailhog'
+  #   ports:
+  #     - "1025:1025"
+  #     - "8025:8025"
+  #   networks:
+  #     - bw-services
+
+  # APPLICATIONS Nginx pour tester le proxy Authentik
+
+  # app1:
+  #   image: nginxdemos/nginx-hello
+  #   networks:
+  #     - bw-services
+
+  # AUTHENTIK SERVICES -------------------------------------------
+
+  postgresql:
+    image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    volumes:
+      - database:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${PG_PASS:?database password required}
+      POSTGRES_USER: ${PG_USER:-authentik}
+      POSTGRES_DB: ${PG_DB:-authentik}
+    env_file:
+      - .env
+    networks:
+      - bw-services
+
+  redis:
+    image: docker.io/library/redis:alpine
+    command: --save 60 1 --loglevel warning
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 3s
+    volumes:
+      - redis:/data
+    networks:
+      - bw-services
+
+
+  server:
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2025.2.3}
+    restart: unless-stopped
+    container_name: server
+    command: server
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__USER: ${PG_USER:-authentik}
+      AUTHENTIK_POSTGRESQL__NAME: ${PG_DB:-authentik}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+    volumes:
+      - ./media:/media
+      - ./custom-templates:/templates
+      - geoip:/geoip
+    env_file:
+      - .env
+    depends_on:
+      - postgresql
+      - redis
+    networks:
+      - bw-services
+
+  worker:
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2025.2.3}
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__USER: ${PG_USER:-authentik}
+      AUTHENTIK_POSTGRESQL__NAME: ${PG_DB:-authentik}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS}
+    user: root
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./media:/media
+      - ./certs:/certs
+      - ./custom-templates:/templates
+      - geoip:/geoip
+    env_file:
+      - .env
+    depends_on:
+      - postgresql
+      - redis
+    networks:
+      - bw-services
+
+volumes:
+  bw-data:
+  database:
+  redis:
+
+networks:
+  bw-universe:
+    name: bw-universe
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.20.30.0/24
+  bw-services:
+    name: bw-services
+  bw-docker:
+    name: bw-docker
